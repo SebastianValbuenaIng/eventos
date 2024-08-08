@@ -37,4 +37,9 @@ public class BoletaController {
     public ResponseEntity<List<BoletaCarritoResponse>> getBoletasCarrito(@RequestParam String nro_documento) {
         return ResponseEntity.ok(boletaService.getBoletasCarritoPersona(nro_documento));
     }
+
+    @GetMapping("/pagadas")
+    public ResponseEntity<List<Object>> getBoletasPagadas() {
+        return ResponseEntity.ok(List.of());
+    }
 }

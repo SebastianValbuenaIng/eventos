@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @Builder
 public class CompraEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer nro;
     private LocalDateTime fecha_creacion;
     private LocalDateTime fecha_pago;

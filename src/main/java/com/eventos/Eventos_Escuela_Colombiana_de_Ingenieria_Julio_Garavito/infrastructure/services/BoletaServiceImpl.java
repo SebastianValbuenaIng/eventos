@@ -15,10 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @AllArgsConstructor
@@ -96,8 +93,10 @@ public class BoletaServiceImpl implements BoletaService {
     public Map<String, String> agregarAlCarrito(BoletaPersonaRequest boletaPersonaRequest) {
         validarRequestAgregar(boletaPersonaRequest);
 
-        // TODO: Estar pendiente del id rol para la boleta
-        if (boletaPersonaRequest.getId_boleta() != 5 && boletaPersonaRequest.getCantidad_boletas() > 1)
+        BoletaEntity foundBoleta = boletaRepository.findById(boletaPersonaRequest.getId_boleta())
+                .orElseThrow(() -> new IdNotFoundException("boleta"));
+
+        if (!foundBoleta.getRol().getDescripcion().equals("Invitado") && boletaPersonaRequest.getCantidad_boletas() > 1)
             throw new MessageBadRequestException("No puedes agregar más de una boleta a ese rol");
 
         PersonaEntity persona;
@@ -122,9 +121,6 @@ public class BoletaServiceImpl implements BoletaService {
 
             persona = personaRepository.save(newPersona);
         }
-
-        BoletaEntity foundBoleta = boletaRepository.findById(boletaPersonaRequest.getId_boleta())
-                .orElseThrow(() -> new IdNotFoundException("boleta"));
 
         List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(persona);
 
@@ -192,7 +188,7 @@ public class BoletaServiceImpl implements BoletaService {
         return carritoPersona.stream()
                 .map(carritoPersonaEntity -> BoletaCarritoResponse
                         .builder()
-                        .boleta_principal(carritoPersonaEntity.getBoleta().getId() != 5)
+                        .boleta_principal(!Objects.equals(carritoPersonaEntity.getBoleta().getRol().getDescripcion(), "Invitado"))
                         .valor(carritoPersonaEntity.getBoleta().getValor())
                         .id_boleta_carrito(carritoPersonaEntity.getId())
                         .build())
