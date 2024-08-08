@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface PersonaRepository extends CrudRepository<PersonaEntity, Integer> {
     Optional<PersonaEntity> findByDocumento(String documento);
+    Optional<PersonaEntity> findByCorreo(String correo);
 }

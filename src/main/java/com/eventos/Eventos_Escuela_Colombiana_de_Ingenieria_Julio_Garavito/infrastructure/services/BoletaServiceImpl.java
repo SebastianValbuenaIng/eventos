@@ -1,6 +1,7 @@
 package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.services;
 
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.request.BoletaPersonaRequest;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaCarritoResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaRolResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.*;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.*;
@@ -35,7 +36,7 @@ public class BoletaServiceImpl implements BoletaService {
 
         // By Rol
         RolEntity rolFound = rolRepository
-                .findByDescripcion(rol)
+                .findByDescripcion(rol.equalsIgnoreCase("estudiantes") ? "estudiante" : rol.toLowerCase())
                 .orElseThrow(() -> new IdNotFoundException("rol"));
 
         BoletaEntity boletaFound = boletaRepository
@@ -85,6 +86,8 @@ public class BoletaServiceImpl implements BoletaService {
         return BoletaRolResponse
                 .builder()
                 .precios_boletas(boletas)
+                .id_boleta_principal(boletaFound.getId())
+                .id_boleta_invitado(boletaInvitadoFound.getId())
                 .fecha_venta_fin(fechaFin)
                 .build();
     }
@@ -176,6 +179,24 @@ public class BoletaServiceImpl implements BoletaService {
         carritoPersonaRepository.delete(foundCarritoPersonaById);
 
         return Map.of("message", "proceso completado correctamente");
+    }
+
+    @Override
+    public List<BoletaCarritoResponse> getBoletasCarritoPersona(String nro_documento) {
+        PersonaEntity personaFound = personaRepository
+                .findByDocumento(nro_documento)
+                .orElseThrow(() -> new IdNotFoundException("persona"));
+
+        List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
+
+        return carritoPersona.stream()
+                .map(carritoPersonaEntity -> BoletaCarritoResponse
+                        .builder()
+                        .boleta_principal(carritoPersonaEntity.getBoleta().getId() != 5)
+                        .valor(carritoPersonaEntity.getBoleta().getValor())
+                        .id_boleta_carrito(carritoPersonaEntity.getId())
+                        .build())
+                .toList();
     }
 
     @Override

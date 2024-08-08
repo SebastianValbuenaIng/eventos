@@ -1,12 +1,14 @@
 package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.controllers;
 
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.request.BoletaPersonaRequest;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaCarritoResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaRolResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.BoletaService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -29,5 +31,10 @@ public class BoletaController {
     @DeleteMapping
     public ResponseEntity<Map<String, String>> eliminarDelCarrito(@RequestParam Integer id_carrito_persona) {
         return ResponseEntity.ok(boletaService.eliminarDelCarrito(id_carrito_persona));
+    }
+
+    @GetMapping("/carrito")
+    public ResponseEntity<List<BoletaCarritoResponse>> getBoletasCarrito(@RequestParam String nro_documento) {
+        return ResponseEntity.ok(boletaService.getBoletasCarritoPersona(nro_documento));
     }
 }
