@@ -2,6 +2,7 @@ package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infr
 
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.request.BoletaPersonaRequest;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaCarritoResponse;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaPagadaResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaRolResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.*;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.*;
@@ -26,6 +27,8 @@ public class BoletaServiceImpl implements BoletaService {
     private final EventoRepository eventoRepository;
     private final CarritoPersonaRepository carritoPersonaRepository;
     private final PersonaRepository personaRepository;
+    private final CompraRepository compraRepository;
+    private final BoletaCompraRepository boletaCompraRepository;
 
     @Override
     public BoletaRolResponse getBoletasByRol(String rol) {
@@ -59,21 +62,21 @@ public class BoletaServiceImpl implements BoletaService {
         LocalDate fechaActual = LocalDate.now().plusMonths(2).plusDays(2);
 
         if (fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_preventa()) ||
-            fechaActual.isEqual(boletaFound.getEvento().getFecha_final_preventa()) ||
-            (
-                    fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_preventa()) &&
-                    fechaActual.isBefore(boletaFound.getEvento().getFecha_final_preventa())
-            ) ||
-            fechaActual.isBefore(boletaFound.getEvento().getFecha_inicio_preventa())
+                fechaActual.isEqual(boletaFound.getEvento().getFecha_final_preventa()) ||
+                (
+                        fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_preventa()) &&
+                                fechaActual.isBefore(boletaFound.getEvento().getFecha_final_preventa())
+                ) ||
+                fechaActual.isBefore(boletaFound.getEvento().getFecha_inicio_preventa())
         ) {
             fechaFin = boletaFound.getEvento().getFecha_final_preventa();
         } else if (
                 fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_regular()) ||
-                fechaActual.isEqual(boletaFound.getEvento().getFecha_final_regular()) ||
-                (
-                        fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_regular()) &&
-                        fechaActual.isBefore(boletaFound.getEvento().getFecha_final_regular())
-                )
+                        fechaActual.isEqual(boletaFound.getEvento().getFecha_final_regular()) ||
+                        (
+                                fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_regular()) &&
+                                        fechaActual.isBefore(boletaFound.getEvento().getFecha_final_regular())
+                        )
         ) {
             fechaFin = boletaFound.getEvento().getFecha_final_regular();
         } else {
@@ -103,6 +106,16 @@ public class BoletaServiceImpl implements BoletaService {
 
         Optional<PersonaEntity> foundPersona = personaRepository.findByDocumento(boletaPersonaRequest.getDocumento());
 
+        if (foundPersona.isPresent() && (foundPersona.get().getCorreo() == null || foundPersona.get().getCorreo().isEmpty())) {
+            foundPersona.get().setCorreo(boletaPersonaRequest.getCorreo());
+            personaRepository.save(foundPersona.get());
+        }
+
+        if (foundPersona.isPresent() && (foundPersona.get().getTelefono() == null || foundPersona.get().getTelefono().isEmpty())) {
+            foundPersona.get().setTelefono(boletaPersonaRequest.getTelefono());
+            personaRepository.save(foundPersona.get());
+        }
+
         if (foundPersona.isPresent()) persona = foundPersona.get();
         else {
             RolEntity foundRol = rolRepository
@@ -114,7 +127,6 @@ public class BoletaServiceImpl implements BoletaService {
                     .correo(boletaPersonaRequest.getCorreo())
                     .nombre(boletaPersonaRequest.getNombre())
                     .telefono(boletaPersonaRequest.getTelefono())
-                    .correo_fact_e(boletaPersonaRequest.getCorreo_facturacion())
                     .documento(boletaPersonaRequest.getDocumento())
                     .rol(foundRol)
                     .build();
@@ -155,7 +167,6 @@ public class BoletaServiceImpl implements BoletaService {
         validNull(boletaPersonaRequest.getCorreo(), "nombre");
         validNull(boletaPersonaRequest.getCorreo(), "documento");
         validNull(boletaPersonaRequest.getCorreo(), "rol");
-        validNull(boletaPersonaRequest.getCorreo(), "correo_facturacion");
         validNull(boletaPersonaRequest.getId_boleta(), "id_boleta");
 
         validEmpty(boletaPersonaRequest.getCorreo(), "correo");
@@ -163,11 +174,12 @@ public class BoletaServiceImpl implements BoletaService {
         validEmpty(boletaPersonaRequest.getCorreo(), "nombre");
         validEmpty(boletaPersonaRequest.getCorreo(), "documento");
         validEmpty(boletaPersonaRequest.getCorreo(), "rol");
-        validEmpty(boletaPersonaRequest.getCorreo(), "correo_facturacion");
     }
 
     @Override
-    public Map<String, String> eliminarDelCarrito(Integer id_carrito_persona) {
+    public Map<String, String> eliminarDelCarrito(Integer id_carrito_persona, String documento) {
+        personaRepository.findByDocumento(documento).orElseThrow(() -> new IdNotFoundException("documento"));
+
         CarritoPersonaEntity foundCarritoPersonaById = carritoPersonaRepository
                 .findById(id_carrito_persona)
                 .orElseThrow(() -> new IdNotFoundException("carrito_persona"));
@@ -192,6 +204,42 @@ public class BoletaServiceImpl implements BoletaService {
                         .valor(carritoPersonaEntity.getBoleta().getValor())
                         .id_boleta_carrito(carritoPersonaEntity.getId())
                         .build())
+                .toList();
+    }
+
+    @Override
+    public List<BoletaPagadaResponse> getBoletasPagadaPersona(String nro_documento) {
+        PersonaEntity persona = personaRepository
+                .findByDocumento(nro_documento)
+                .orElseThrow(() -> new IdNotFoundException("persona"));
+
+        List<CompraEntity> comprasPersona = compraRepository.findAllByPersona(persona);
+
+        return comprasPersona
+                .stream()
+                .filter(compraEntity -> compraEntity.getEstadoCompra().getDescripcion().equals("Completado"))
+                .map(compraEntity -> {
+                    List<BoletaCompraEntity> boletaCompra = boletaCompraRepository.findAllByCompra(compraEntity);
+
+                    long boletasInvitados = boletaCompra
+                            .stream()
+                            .filter(boletaCompraEntity -> boletaCompraEntity.getBoleta().getRol().getDescripcion().equals("Invitado"))
+                            .count();
+
+                    Optional<BoletaCompraEntity> boletaPrincipal = boletaCompra
+                            .stream()
+                            .filter(boletaCompraEntity -> !boletaCompraEntity.getBoleta().getRol().getDescripcion().equals("Invitado"))
+                            .findFirst();
+
+                    return BoletaPagadaResponse
+                            .builder()
+                            .nombre(persona.getNombre())
+                            .fecha_pago(compraEntity.getFecha_pago())
+                            .boleta_principal(boletaPrincipal.isPresent())
+                            .cantidad_boletas_invitados((int) boletasInvitados)
+                            .valor(compraEntity.getValor())
+                            .build();
+                })
                 .toList();
     }
 

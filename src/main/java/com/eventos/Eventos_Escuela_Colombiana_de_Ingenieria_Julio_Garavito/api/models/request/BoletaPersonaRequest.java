@@ -13,7 +13,6 @@ public class BoletaPersonaRequest {
     private String nombre;
     private String documento;
     private String rol;
-    private String correo_facturacion;
     private Integer id_boleta;
     private Integer cantidad_boletas;
 }

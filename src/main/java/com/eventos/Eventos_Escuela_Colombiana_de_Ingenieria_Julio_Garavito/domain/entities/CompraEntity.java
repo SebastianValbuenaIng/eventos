@@ -15,7 +15,9 @@ import java.time.LocalDateTime;
 public class CompraEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer nro;
+    private Integer id;
+    @Column(name = "numero_referencia")
+    private Long numeroReferencia;
     private LocalDateTime fecha_creacion;
     private LocalDateTime fecha_pago;
     private Integer valor;

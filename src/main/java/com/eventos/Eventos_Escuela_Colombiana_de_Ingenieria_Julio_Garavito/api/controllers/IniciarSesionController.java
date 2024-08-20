@@ -14,7 +14,7 @@ public class IniciarSesionController {
     private final IniciarSesionService iniciarSesionService;
 
     @GetMapping
-    public ResponseEntity<InicioSesionResponse> iniciarSesionAdministrativoEstudiante(@RequestParam String correo) {
+    public ResponseEntity<Object> iniciarSesionAdministrativoEstudiante(@RequestParam String correo) {
         return ResponseEntity.ok(iniciarSesionService.iniciarSesion(correo));
     }
 

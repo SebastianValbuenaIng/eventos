@@ -18,7 +18,6 @@ public class PersonaEntity {
     private String telefono;
     private String nombre;
     private String documento;
-    private String correo_fact_e;
 
     @ManyToOne
     @JoinColumn(name = "id_rol", nullable = false)

@@ -2,6 +2,7 @@ package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.
 
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.request.BoletaPersonaRequest;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaCarritoResponse;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaPagadaResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaRolResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.BoletaService;
 import lombok.AllArgsConstructor;
@@ -29,8 +30,8 @@ public class BoletaController {
     }
 
     @DeleteMapping
-    public ResponseEntity<Map<String, String>> eliminarDelCarrito(@RequestParam Integer id_carrito_persona) {
-        return ResponseEntity.ok(boletaService.eliminarDelCarrito(id_carrito_persona));
+    public ResponseEntity<Map<String, String>> eliminarDelCarrito(@RequestParam Integer id_carrito_persona, @RequestParam String documento) {
+        return ResponseEntity.ok(boletaService.eliminarDelCarrito(id_carrito_persona, documento));
     }
 
     @GetMapping("/carrito")
@@ -39,7 +40,7 @@ public class BoletaController {
     }
 
     @GetMapping("/pagadas")
-    public ResponseEntity<List<Object>> getBoletasPagadas() {
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<BoletaPagadaResponse>> getBoletasPagadas(@RequestParam String nro_documento) {
+        return ResponseEntity.ok(boletaService.getBoletasPagadaPersona(nro_documento));
     }
 }

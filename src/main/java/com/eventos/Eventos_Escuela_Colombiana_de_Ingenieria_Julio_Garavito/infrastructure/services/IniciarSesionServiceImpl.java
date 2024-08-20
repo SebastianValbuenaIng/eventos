@@ -1,14 +1,8 @@
 package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.services;
 
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.InicioSesionResponse;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.CarritoPersonaEntity;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.CompraEntity;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.PersonaEntity;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.RolEntity;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.CarritoPersonaRepository;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.CompraRepository;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.PersonaRepository;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.RolRepository;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.*;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.*;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.IniciarSesionService;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.IdNotFoundException;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.ServerErrorException;
@@ -31,9 +25,15 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
     private final CarritoPersonaRepository carritoPersonaRepository;
     private final CompraRepository compraRepository;
     private final RolRepository rolRepository;
+    private final AdministradorRepository administradorRepository;
+    private final BoletaCompraRepository boletaCompraRepository;
 
     @Override
-    public InicioSesionResponse iniciarSesion(String correo) {
+    public Object iniciarSesion(String correo) {
+        Optional<AdministradorEntity> administrador = administradorRepository.findByCorreo(correo);
+
+        if (administrador.isPresent()) return Map.of("rol", "administrador");
+
         try {
             String consulta = String.format("SELECT * FROM dbo.personas_activas WHERE email = '%s'", correo);
 
@@ -43,6 +43,19 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
 
             Optional<PersonaEntity> foundPersona = personaRepository
                     .findByDocumento(String.valueOf(returnQuery.get("nro_documento")));
+
+            // Validar que en la tabla boleta_compra no hayan más de 500 registros
+            List<BoletaCompraEntity> findAllBoletasPagadas = (List<BoletaCompraEntity>) boletaCompraRepository.findAll();
+
+            String correoToDb;
+
+            if (String.valueOf(returnQuery.get("email")).equals("null")) {
+                correoToDb = null;
+            } else if (String.valueOf(returnQuery.get("email")).isEmpty()) {
+                correoToDb = null;
+            } else {
+                correoToDb = String.valueOf(returnQuery.get("email"));
+            }
 
             if (foundPersona.isEmpty()) {
                 String rolTipo = String.valueOf(returnQuery.get("tipo_rol")).trim().equals("Estudiantes") ? "Estudiante"
@@ -55,27 +68,28 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
 
                 PersonaEntity newPersona = PersonaEntity
                         .builder()
-                        .correo(String.valueOf(returnQuery.get("email")))
+                        .correo(correoToDb)
                         .rol(rol)
-                        .documento(String.valueOf(returnQuery.get("nro_documento")))
-                        .telefono(String.valueOf(returnQuery.get("telefono")))
-                        .nombre(String.valueOf(returnQuery.get("nombre")))
+                        .documento(String.valueOf(returnQuery.get("nro_documento").equals("null") ? null : String.valueOf(returnQuery.get("nro_documento"))))
+                        .telefono(String.valueOf(returnQuery.get("telefono")).equals("null") ? null : String.valueOf(returnQuery.get("telefono")))
+                        .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                         .build();
 
                 personaRepository.save(newPersona);
 
                 return InicioSesionResponse
                         .builder()
-                        .area(String.valueOf(returnQuery.get("area")).trim())
-                        .correo(String.valueOf(returnQuery.get("email")))
-                        .rol(String.valueOf(returnQuery.get("tipo_rol")))
-                        .direccion(String.valueOf(returnQuery.get("direccion")))
+                        .area(String.valueOf(returnQuery.get("area")).trim().equals("null") ? null : String.valueOf(returnQuery.get("area")))
+                        .correo(correoToDb)
+                        .rol(String.valueOf(returnQuery.get("tipo_rol")).equals("null") ? null : String.valueOf(returnQuery.get("tipo_rol")))
+                        .direccion(String.valueOf(returnQuery.get("direccion")).equals("null") ? null : String.valueOf(returnQuery.get("direccion")))
                         .nro_documento(String.valueOf(returnQuery.get("nro_documento")))
-                        .telefono(String.valueOf(returnQuery.get("telefono")))
+                        .telefono(String.valueOf(returnQuery.get("telefono")).equals("null") ? null : String.valueOf(returnQuery.get("telefono")))
                         .nombre(String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
                         .pago_boleta_rol_principal(false)
+                        .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                         .build();
             }
 
@@ -100,16 +114,17 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
 
             return InicioSesionResponse
                     .builder()
-                    .area(String.valueOf(returnQuery.get("area")).trim())
-                    .correo(String.valueOf(returnQuery.get("email")))
-                    .rol(String.valueOf(returnQuery.get("tipo_rol")))
-                    .direccion(String.valueOf(returnQuery.get("direccion")))
+                    .area(String.valueOf(returnQuery.get("area")).trim().equals("null") ? null : String.valueOf(returnQuery.get("area")))
+                    .correo(correoToDb)
+                    .rol(String.valueOf(returnQuery.get("tipo_rol")).equals("null") ? null : String.valueOf(returnQuery.get("tipo_rol")))
+                    .direccion(String.valueOf(returnQuery.get("direccion")).equals("null") ? null : String.valueOf(returnQuery.get("direccion")))
                     .nro_documento(String.valueOf(returnQuery.get("nro_documento")))
-                    .telefono(String.valueOf(returnQuery.get("telefono")))
+                    .telefono(String.valueOf(returnQuery.get("telefono")).equals("null") ? null : String.valueOf(returnQuery.get("telefono")))
                     .nombre(String.valueOf(returnQuery.get("nombre")))
                     .carrito_boleta(carrito_persona)
                     .cantidad_boletas_carrito(listCarritoPersona.size())
                     .pago_boleta_rol_principal(pago_boleta_principal)
+                    .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                     .build();
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -121,15 +136,28 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
     public InicioSesionResponse iniciarSesionGraduado(String nro_documento) {
         try {
             String consulta = String.format("""
-                select distinct b.national_id, b.nombre, a.documento, a.email, a.tel_residencia, a.cel
-                from uge.migracion_directa_graduados b
-                inner join uge.datos_egre a on (b.NATIONAL_ID = a.documento) where documento = '%s'""", nro_documento);
+                    select distinct b.national_id, b.nombre, a.documento, a.email, a.tel_residencia, a.cel
+                    from uge.migracion_directa_graduados b
+                    inner join uge.datos_egre a on (b.NATIONAL_ID = a.documento) where documento = '%s'""", nro_documento);
 
             Map<String, Object> returnQuery = registroConnection.executeSelectSql(consulta);
 
             if (returnQuery.isEmpty()) throw new IdNotFoundException("registro_graduado");
 
             Optional<PersonaEntity> foundPersona = personaRepository.findByDocumento(String.valueOf(returnQuery.get("documento")));
+
+            // Validar que en la tabla boleta_compra no hayan más de 500 registros
+            List<BoletaCompraEntity> findAllBoletasPagadas = (List<BoletaCompraEntity>) boletaCompraRepository.findAll();
+
+            String correoToDb;
+
+            if (String.valueOf(returnQuery.get("email")).equals("null")) {
+                correoToDb = null;
+            } else if (String.valueOf(returnQuery.get("email")).isEmpty()) {
+                correoToDb = null;
+            } else {
+                correoToDb = String.valueOf(returnQuery.get("email"));
+            }
 
             if (foundPersona.isEmpty()) {
                 RolEntity rol = rolRepository
@@ -138,11 +166,11 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
 
                 PersonaEntity newPersona = PersonaEntity
                         .builder()
-                        .correo(String.valueOf(returnQuery.get("email")))
+                        .correo(correoToDb)
                         .rol(rol)
-                        .documento(String.valueOf(returnQuery.get("documento")))
-                        .telefono(String.valueOf(returnQuery.get("tel_residencia")))
-                        .nombre(String.valueOf(returnQuery.get("nombre")))
+                        .documento(String.valueOf(returnQuery.get("documento").equals("null") ? null : String.valueOf(returnQuery.get("documento"))))
+                        .telefono(String.valueOf(returnQuery.get("tel_residencia")).equals("null") ? null : String.valueOf(returnQuery.get("tel_residencia")))
+                        .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                         .build();
 
                 personaRepository.save(newPersona);
@@ -150,15 +178,16 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                 return InicioSesionResponse
                         .builder()
                         .area(null)
-                        .correo(String.valueOf(returnQuery.get("email")))
+                        .correo(correoToDb)
                         .rol("Graduado")
                         .direccion(null)
                         .nro_documento(String.valueOf(returnQuery.get("documento")))
-                        .telefono(String.valueOf(returnQuery.get("tel_residencia")))
-                        .nombre(String.valueOf(returnQuery.get("nombre")))
+                        .telefono(String.valueOf(returnQuery.get("tel_residencia")).equals("null") ? null : String.valueOf(returnQuery.get("tel_residencia")))
+                        .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
                         .pago_boleta_rol_principal(false)
+                        .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                         .build();
             }
 
@@ -184,15 +213,16 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
             return InicioSesionResponse
                     .builder()
                     .area(null)
-                    .correo(String.valueOf(returnQuery.get("email")))
+                    .correo(correoToDb)
                     .rol("Graduado")
                     .direccion(null)
                     .nro_documento(String.valueOf(returnQuery.get("documento")))
-                    .telefono(String.valueOf(returnQuery.get("tel_residencia")))
-                    .nombre(String.valueOf(returnQuery.get("nombre")))
+                    .telefono(String.valueOf(returnQuery.get("tel_residencia")).equals("null") ? null : String.valueOf(returnQuery.get("tel_residencia")))
+                    .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                     .carrito_boleta(carrito_persona)
                     .cantidad_boletas_carrito(listCarritoPersona.size())
                     .pago_boleta_rol_principal(pago_boleta_principal)
+                    .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                     .build();
 
         } catch (SQLException e) {

@@ -5,20 +5,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class InicioSesionResponse {
-    private String area;
+public class AdminBoletaPagadaResponse {
     private String nombre;
+    private Integer consecutivo_boleta;
+    private LocalDateTime fecha_pago;
     private String rol;
-    private String direccion;
     private String correo;
-    private String nro_documento;
     private String telefono;
-    private Boolean pago_boleta_rol_principal;
-    private Boolean carrito_boleta;
-    private Integer cantidad_boletas_carrito;
-    private Boolean boletas_maximas;
+    private Integer valor;
 }

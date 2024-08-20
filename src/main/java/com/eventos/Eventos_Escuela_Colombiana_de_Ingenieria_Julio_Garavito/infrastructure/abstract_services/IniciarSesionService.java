@@ -3,6 +3,6 @@ package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infr
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.InicioSesionResponse;
 
 public interface IniciarSesionService {
-    InicioSesionResponse iniciarSesion(String correo);
+    Object iniciarSesion(String correo);
     InicioSesionResponse iniciarSesionGraduado(String nro_documento);
 }

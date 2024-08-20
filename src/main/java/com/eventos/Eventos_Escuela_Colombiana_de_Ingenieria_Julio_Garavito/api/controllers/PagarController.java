@@ -16,13 +16,13 @@ public class PagarController {
     private final PagarService pagarService;
 
     @PostMapping(path = "/receivePay", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<Void> notify(String descripcion, String valor, String estado_pol) {
+    public ResponseEntity<?> notify(String descripcion, String valor, String estado_pol) {
         pagarService.generatePay(descripcion, valor, estado_pol);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Integer>> pagar(@RequestParam String documento, @RequestParam Integer valor) {
+    public ResponseEntity<Map<String, Long>> pagar(@RequestParam String documento, @RequestParam Integer valor) {
         return ResponseEntity.ok(pagarService.pagar(documento, valor));
     }
 }
