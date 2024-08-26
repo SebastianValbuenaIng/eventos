@@ -4,9 +4,11 @@ import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.m
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.AdminCompraResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.CompraAdminResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.BoletaCompraEntity;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.CarritoPersonaEntity;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.CompraEntity;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.AdministradorRepository;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.BoletaCompraRepository;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.CarritoPersonaRepository;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.CompraRepository;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.AdministradorService;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.IdNotFoundException;
@@ -25,6 +27,7 @@ public class AdministradorServiceImpl implements AdministradorService {
     private final AdministradorRepository administradorRepository;
     private final CompraRepository compraRepository;
     private final BoletaCompraRepository boletaCompraRepository;
+    private final CarritoPersonaRepository carritoPersonaRepository;
 
     @Override
     public List<AdminBoletaPagadaResponse> getBoletasAdmin(String correo) {
@@ -32,8 +35,25 @@ public class AdministradorServiceImpl implements AdministradorService {
 
         List<CompraEntity> findAllCompras = (List<CompraEntity>) compraRepository.findAll();
 
+        List<CarritoPersonaEntity> findAllCarritoPersona = (List<CarritoPersonaEntity>) carritoPersonaRepository.findAll();
+
         List<AdminBoletaPagadaResponse> boletasAdmin = new ArrayList<>();
 
+        // Boletas en el carrito
+        findAllCarritoPersona.forEach(carritoPersonaEntity -> {
+            AdminBoletaPagadaResponse boletaPagadaResponse = AdminBoletaPagadaResponse
+                    .builder()
+                    .nombre(carritoPersonaEntity.getPersona().getNombre())
+                    .rol(carritoPersonaEntity.getBoleta().getRol().getDescripcion())
+                    .telefono(carritoPersonaEntity.getPersona().getTelefono())
+                    .correo(carritoPersonaEntity.getPersona().getCorreo())
+                    .valor(carritoPersonaEntity.getBoleta().getValor())
+                    .build();
+
+            boletasAdmin.add(boletaPagadaResponse);
+        });
+
+        // Boletas pagadas
         findAllCompras.forEach(compraEntity -> {
             List<BoletaCompraEntity> boletasCompra = boletaCompraRepository.findAllByCompra(compraEntity);
 

@@ -17,7 +17,7 @@ import java.util.List;
 public class AdminController {
     private final AdministradorService administradorService;
 
-    @GetMapping("/boletasPagadas")
+    @GetMapping("/boletasPersonas")
     public ResponseEntity<List<AdminBoletaPagadaResponse>> boletasPagadas(@RequestParam String correo) {
         return ResponseEntity.ok(administradorService.getBoletasAdmin(correo));
     }
