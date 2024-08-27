@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -66,7 +67,7 @@ public class PagarServiceImpl implements PagarService {
                 .valor(valorTotal)
                 .persona(personaFound)
                 .estadoCompra(estadoCompra)
-                .numeroReferencia(Long.parseLong("9099" + numeroDocumentoPersonaSinLetras))
+                .numeroReferencia((long) numeroDocumentoPersonaSinLetras)
                 .build();
 
         CompraEntity compraSaved = compraRepository.save(compra);
@@ -139,8 +140,12 @@ public class PagarServiceImpl implements PagarService {
     public void generatePay(String descripcion, String value, String estado_pol) {
         if (!Objects.equals(estado_pol, "4")) return;
 
+        EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository
+                .findByDescripcion("En espera")
+                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
         CompraEntity compraFound = compraRepository
-                .findByNumeroReferencia(Long.valueOf(descripcion.split("#")[1]))
+                .findByNumeroReferenciaAndEstadoCompra(Long.valueOf(descripcion.split("#")[1]), estadoCompraEnEspera)
                 .orElseThrow(() -> new IdNotFoundException("compra"));
 
 //        if (compraFound.getEstadoCompra().getDescripcion().equals("Completado")) return;
@@ -157,6 +162,8 @@ public class PagarServiceImpl implements PagarService {
         // * Limpiar del carrito de la persona e insertar en boleta_compra
         List<BoletaCompraEntity> boletasCompras = insertsBoletaCompraAndDeleteCarritoPersona(personaFound, compraFound);
 
+        boletasCompras.forEach(boletaCompraEntity -> System.out.println(boletaCompraEntity.getConsecutivoBoleta()));
+
         EstadoCompraEntity estadoCompraCompletado = estadoCompraRepository
                 .findByDescripcion("Completado")
                 .orElseThrow(() -> new IdNotFoundException("estado_compra"));
@@ -164,6 +171,28 @@ public class PagarServiceImpl implements PagarService {
         compraFound.setEstadoCompra(estadoCompraCompletado);
         compraFound.setFecha_pago(LocalDateTime.now());
         compraRepository.save(compraFound);
+
+        String htmlBody = getEmail(boletasCompras, personaFound, compraFound);
+
+        // * Enviar correo
+        enviarCorreo(htmlBody, personaFound.getCorreo());
+    }
+
+    @Override
+    public void enviarCorreoPrueba() {
+        EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository
+                .findByDescripcion("En espera")
+                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
+        CompraEntity compraFound = compraRepository
+                .findByNumeroReferenciaAndEstadoCompra(Long.valueOf("90991193044098"), estadoCompraEnEspera)
+                .orElseThrow(() -> new IdNotFoundException("compra"));
+
+        PersonaEntity personaFound = personaRepository
+                .findByDocumento("1193044098")
+                .orElseThrow(() -> new IdNotFoundException("persona"));
+
+        List<BoletaCompraEntity> boletasCompras = boletaCompraRepository.findAll();
 
         String htmlBody = getEmail(boletasCompras, personaFound, compraFound);
 
@@ -181,19 +210,16 @@ public class PagarServiceImpl implements PagarService {
                         <p class="texto-consecutivo-boleta"><b> Boleta Nº: %s </b></p>
                     </div>
                     <br />
+                    <hr>
+                    <br />
                     """, boletasCompra.getConsecutivoBoleta()));
         }
 
         NumberFormat formatoCOP = NumberFormat.getCurrencyInstance(new Locale("es", "CO"));
 
         return String.format("""
-                <p class="titulos">Se recibió su pago correctamente</p>
-                <br />
-                
                 <p class="texto">Hola, %s: </p>
-                <br />
                 <p class="texto">Se le informa que se ha recibido su pago correctamente por un valor de: <b>%s COP</b>.</p>
-                <br />
                 <p>El número de sus boletas son: </p>
                 <br />
                 %s
@@ -232,10 +258,9 @@ public class PagarServiceImpl implements PagarService {
             boletaCompraDb.add(boletaCompra);
         }
 
-        List<BoletaCompraEntity> boletasCompras = (List<BoletaCompraEntity>) boletaCompraRepository.saveAll(boletaCompraDb);
         carritoPersonaRepository.deleteAll(carritoPersona);
 
-        return boletasCompras;
+        return boletaCompraRepository.saveAllAndFlush(boletaCompraDb);
     }
 
     private void enviarCorreo(String content, String correo) {
@@ -243,7 +268,7 @@ public class PagarServiceImpl implements PagarService {
             try {
                 MimeMessage mailMessage = javaMailSender.createMimeMessage();
 
-                String htmlBody = readHtmlTemplate.readHtmlTemplate(content, "email_sesion_graduado.html");
+                String htmlBody = readHtmlTemplate.readHtmlTemplate(content, "plantilla.html");
                 mailMessage.setContent(htmlBody, "text/html; charset=UTF-8");
                 mailMessage.setFrom(Objects.requireNonNull(environment.getProperty("spring.mail.username")));
                 mailMessage.setSubject("Se ha recibido su pago correctamente");

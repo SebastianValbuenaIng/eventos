@@ -1,5 +1,8 @@
 package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito;
 
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.PagarService;
+import lombok.AllArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -7,13 +10,14 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.List;
 import java.util.concurrent.Executor;
 
 @SpringBootApplication
 @EnableScheduling
 @EnableAsync
+@AllArgsConstructor
 public class EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication {
+	private final PagarService pagarService;
 
     public static void main(String[] args) {
 		SpringApplication.run(EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication.class, args);

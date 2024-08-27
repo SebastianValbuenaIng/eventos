@@ -11,5 +11,5 @@ import java.util.Optional;
 public interface CompraRepository extends CrudRepository<CompraEntity, Integer> {
     List<CompraEntity> findAllByPersona(PersonaEntity persona);
     Optional<CompraEntity> findByEstadoCompraAndAndPersona(EstadoCompraEntity estadoCompra, PersonaEntity persona);
-    Optional<CompraEntity> findByNumeroReferencia(Long numeroReferencia);
+    Optional<CompraEntity> findByNumeroReferenciaAndEstadoCompra(Long numeroReferencia, EstadoCompraEntity estadoCompra);
 }
