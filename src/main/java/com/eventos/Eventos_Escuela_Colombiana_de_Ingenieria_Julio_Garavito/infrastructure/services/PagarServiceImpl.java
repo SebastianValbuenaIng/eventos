@@ -12,7 +12,6 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.AllArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +20,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -32,6 +30,7 @@ public class PagarServiceImpl implements PagarService {
     private final CompraRepository compraRepository;
     private final EstadoCompraRepository estadoCompraRepository;
     private final BoletaCompraRepository boletaCompraRepository;
+    private final HistorialPagoCompraMenorRepository historialPagoCompraMenorRepository;
     private final JavaMailSender javaMailSender;
     private final Environment environment;
     private final ReadHTMLTemplate readHtmlTemplate;
@@ -47,7 +46,7 @@ public class PagarServiceImpl implements PagarService {
                 .orElseThrow(() -> new IdNotFoundException("estado_compra"));
 
         Optional<CompraEntity> compraFound = compraRepository
-                .findByEstadoCompraAndAndPersona(estadoCompra, personaFound);
+                .findByEstadoCompraAndPersona(estadoCompra, personaFound);
 
         int valorTotal = getValorTotal(valor, personaFound);
 
@@ -80,9 +79,7 @@ public class PagarServiceImpl implements PagarService {
         int valorTotal = getValorTotal(carritoPersona);
 
         if (valor != valorTotal) throw new MessageBadRequestException("El valor no es el adecuado");
-        // TODO: Descomentar
         return valorTotal;
-//        return 1000;
     }
 
     private static int removeLetters(String input) {
@@ -148,21 +145,29 @@ public class PagarServiceImpl implements PagarService {
                 .findByNumeroReferenciaAndEstadoCompra(Long.valueOf(descripcion.split("#")[1]), estadoCompraEnEspera)
                 .orElseThrow(() -> new IdNotFoundException("compra"));
 
-//        if (compraFound.getEstadoCompra().getDescripcion().equals("Completado")) return;
-
         PersonaEntity personaFound = personaRepository
                 .findByDocumento(compraFound.getPersona().getDocumento())
                 .orElseThrow(() -> new IdNotFoundException("persona"));
 
         int valorRecibido = Integer.parseInt(value.split("\\.")[0]);
 
-        boolean validPay = (compraFound.getValor() == valorRecibido);
-        if (!validPay) return;
+        boolean validPay = (valorRecibido >= compraFound.getValor());
+
+        if (!validPay) {
+            HistorialPagoCompraMenorEntity historialPagoCompraMenorEntity = HistorialPagoCompraMenorEntity
+                    .builder()
+                    .fecha(LocalDateTime.now())
+                    .descripcion_payu(descripcion)
+                    .valor_recibido(valorRecibido)
+                    .build();
+
+            historialPagoCompraMenorRepository.saveAndFlush(historialPagoCompraMenorEntity);
+
+            return;
+        }
 
         // * Limpiar del carrito de la persona e insertar en boleta_compra
         List<BoletaCompraEntity> boletasCompras = insertsBoletaCompraAndDeleteCarritoPersona(personaFound, compraFound);
-
-        boletasCompras.forEach(boletaCompraEntity -> System.out.println(boletaCompraEntity.getConsecutivoBoleta()));
 
         EstadoCompraEntity estadoCompraCompletado = estadoCompraRepository
                 .findByDescripcion("Completado")
@@ -181,15 +186,15 @@ public class PagarServiceImpl implements PagarService {
     @Override
     public void enviarCorreoPrueba() {
         EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository
-                .findByDescripcion("En espera")
+                .findByDescripcion("Completado")
                 .orElseThrow(() -> new IdNotFoundException("estado_compra"));
 
         CompraEntity compraFound = compraRepository
-                .findByNumeroReferenciaAndEstadoCompra(Long.valueOf("90991193044098"), estadoCompraEnEspera)
+                .findByNumeroReferenciaAndEstadoCompra(Long.valueOf("52848877"), estadoCompraEnEspera)
                 .orElseThrow(() -> new IdNotFoundException("compra"));
 
         PersonaEntity personaFound = personaRepository
-                .findByDocumento("1193044098")
+                .findByDocumento("52848877")
                 .orElseThrow(() -> new IdNotFoundException("persona"));
 
         List<BoletaCompraEntity> boletasCompras = boletaCompraRepository.findAll();
@@ -281,26 +286,26 @@ public class PagarServiceImpl implements PagarService {
         });
     }
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "America/Bogota")
-    public void revisarCompras() {
-        List<CompraEntity> compras = (List<CompraEntity>) compraRepository.findAll();
-
-        LocalDateTime fechaActual = LocalDateTime.now();
-
-        EstadoCompraEntity estadoCompra = estadoCompraRepository
-                .findByDescripcion("Cancelado")
-                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
-
-        List<CompraEntity> comprasFiltered = compras
-                .stream()
-                .filter(compraEntity -> compraEntity.getEstadoCompra().getDescripcion().equals("En espera"))
-                .toList();
-
-        comprasFiltered.forEach(compra -> {
-            if (compra.getFecha_creacion().isBefore(fechaActual.minusHours(24))) {
-                compra.setEstadoCompra(estadoCompra);
-                compraRepository.save(compra);
-            }
-        });
-    }
+//    @Scheduled(cron = "0 0 0 * * *", zone = "America/Bogota")
+//    public void revisarCompras() {
+//        List<CompraEntity> compras = (List<CompraEntity>) compraRepository.findAll();
+//
+//        LocalDateTime fechaActual = LocalDateTime.now();
+//
+//        EstadoCompraEntity estadoCompra = estadoCompraRepository
+//                .findByDescripcion("Cancelado")
+//                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+//
+//        List<CompraEntity> comprasFiltered = compras
+//                .stream()
+//                .filter(compraEntity -> compraEntity.getEstadoCompra().getDescripcion().equals("En espera"))
+//                .toList();
+//
+//        comprasFiltered.forEach(compra -> {
+//            if (compra.getFecha_creacion().isBefore(fechaActual.minusHours(24))) {
+//                compra.setEstadoCompra(estadoCompra);
+//                compraRepository.save(compra);
+//            }
+//        });
+//    }
 }

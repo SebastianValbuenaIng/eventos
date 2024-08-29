@@ -32,8 +32,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
     public Object iniciarSesion(String correo) {
         Optional<AdministradorEntity> administrador = administradorRepository.findByCorreo(correo);
 
-        if (administrador.isPresent()) return Map.of("rol", "administrador");
-
         try {
             String consulta = String.format("SELECT * FROM dbo.personas_activas WHERE email = '%s'", correo);
 
@@ -45,7 +43,62 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                     .findByDocumento(String.valueOf(returnQuery.get("nro_documento")));
 
             // Validar que en la tabla boleta_compra no hayan más de 500 registros
-            List<BoletaCompraEntity> findAllBoletasPagadas = (List<BoletaCompraEntity>) boletaCompraRepository.findAll();
+            List<BoletaCompraEntity> findAllBoletasPagadas = boletaCompraRepository.findAll();
+
+            if (administrador.isPresent() && foundPersona.isEmpty()) {
+                String rolTipo = String.valueOf(returnQuery.get("tipo_rol")).trim().equals("Estudiantes") ? "Estudiante"
+                        : String.valueOf(returnQuery.get("tipo_rol")).trim().equals("Administrativo") ? "Administrativo"
+                        : "Profesor";
+
+                RolEntity rol = rolRepository
+                        .findByDescripcion(rolTipo)
+                        .orElseThrow(() -> new IdNotFoundException("rol"));
+
+                PersonaEntity newPersona = PersonaEntity
+                        .builder()
+                        .correo(correo)
+                        .rol(rol)
+                        .documento(String.valueOf(returnQuery.get("nro_documento").equals("null") ? null : String.valueOf(returnQuery.get("nro_documento"))))
+                        .telefono(String.valueOf(returnQuery.get("telefono")).equals("null") ? null : String.valueOf(returnQuery.get("telefono")))
+                        .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
+                        .build();
+
+                personaRepository.save(newPersona);
+
+                return InicioSesionResponse
+                        .builder()
+                        .area(String.valueOf(returnQuery.get("area")).trim().equals("null") ? null : String.valueOf(returnQuery.get("area")))
+                        .correo(correo)
+                        .rol("Administrativo")
+                        .direccion(String.valueOf(returnQuery.get("direccion")).equals("null") ? null : String.valueOf(returnQuery.get("direccion")))
+                        .nro_documento(String.valueOf(returnQuery.get("nro_documento")))
+                        .telefono(String.valueOf(returnQuery.get("telefono")).equals("null") ? null : String.valueOf(returnQuery.get("telefono")))
+                        .nombre(String.valueOf(returnQuery.get("nombre")))
+                        .carrito_boleta(false)
+                        .cantidad_boletas_carrito(0)
+                        .pago_boleta_rol_principal(false)
+                        .boletas_maximas(findAllBoletasPagadas.size() >= 500)
+                        .admin(true)
+                        .build();
+            }
+
+            if (administrador.isPresent()) {
+                return InicioSesionResponse
+                        .builder()
+                        .area(String.valueOf(returnQuery.get("area")).trim().equals("null") ? null : String.valueOf(returnQuery.get("area")))
+                        .correo(correo)
+                        .rol("Administrativo")
+                        .direccion(String.valueOf(returnQuery.get("direccion")).equals("null") ? null : String.valueOf(returnQuery.get("direccion")))
+                        .nro_documento(String.valueOf(returnQuery.get("nro_documento")))
+                        .telefono(String.valueOf(returnQuery.get("telefono")).equals("null") ? null : String.valueOf(returnQuery.get("telefono")))
+                        .nombre(String.valueOf(returnQuery.get("nombre")))
+                        .carrito_boleta(false)
+                        .cantidad_boletas_carrito(0)
+                        .pago_boleta_rol_principal(false)
+                        .boletas_maximas(findAllBoletasPagadas.size() >= 500)
+                        .admin(true)
+                        .build();
+            }
 
             String correoToDb;
 
@@ -125,6 +178,7 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                     .cantidad_boletas_carrito(listCarritoPersona.size())
                     .pago_boleta_rol_principal(pago_boleta_principal)
                     .boletas_maximas(findAllBoletasPagadas.size() >= 500)
+                    .admin(false)
                     .build();
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -147,7 +201,7 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
             Optional<PersonaEntity> foundPersona = personaRepository.findByDocumento(String.valueOf(returnQuery.get("documento")));
 
             // Validar que en la tabla boleta_compra no hayan más de 500 registros
-            List<BoletaCompraEntity> findAllBoletasPagadas = (List<BoletaCompraEntity>) boletaCompraRepository.findAll();
+            List<BoletaCompraEntity> findAllBoletasPagadas = boletaCompraRepository.findAll();
 
             String correoToDb;
 
@@ -169,7 +223,7 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                         .correo(correoToDb)
                         .rol(rol)
                         .documento(String.valueOf(returnQuery.get("documento").equals("null") ? null : String.valueOf(returnQuery.get("documento"))))
-                        .telefono(String.valueOf(returnQuery.get("tel_residencia")).equals("null") ? null : String.valueOf(returnQuery.get("tel_residencia")))
+                        .telefono((String.valueOf(returnQuery.get("cel")).equals("null") || String.valueOf(returnQuery.get("cel")).isEmpty()) ? null : String.valueOf(returnQuery.get("cel")))
                         .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                         .build();
 
@@ -182,7 +236,7 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                         .rol("Graduado")
                         .direccion(null)
                         .nro_documento(String.valueOf(returnQuery.get("documento")))
-                        .telefono(String.valueOf(returnQuery.get("tel_residencia")).equals("null") ? null : String.valueOf(returnQuery.get("tel_residencia")))
+                        .telefono((String.valueOf(returnQuery.get("cel")).equals("null") || String.valueOf(returnQuery.get("cel")).isEmpty()) ? null : String.valueOf(returnQuery.get("cel")))
                         .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
@@ -217,7 +271,7 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                     .rol("Graduado")
                     .direccion(null)
                     .nro_documento(String.valueOf(returnQuery.get("documento")))
-                    .telefono(String.valueOf(returnQuery.get("tel_residencia")).equals("null") ? null : String.valueOf(returnQuery.get("tel_residencia")))
+                    .telefono((String.valueOf(returnQuery.get("cel")).equals("null") || String.valueOf(returnQuery.get("cel")).isEmpty()) ? null : String.valueOf(returnQuery.get("cel")))
                     .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                     .carrito_boleta(carrito_persona)
                     .cantidad_boletas_carrito(listCarritoPersona.size())
@@ -229,5 +283,18 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
             System.out.println(e.getMessage());
             throw new ServerErrorException();
         }
+    }
+
+    @Override
+    public Map<String, String> insertDatosGraduado(String correo, String telefono, String documento) {
+        PersonaEntity persona = personaRepository.findByDocumento(documento)
+                .orElseThrow(() -> new IdNotFoundException("persona"));
+
+        if (telefono != null && !telefono.isEmpty()) persona.setTelefono(telefono);
+        if (correo != null && !correo.isEmpty()) persona.setCorreo(correo);
+
+        personaRepository.save(persona);
+
+        return Map.of("message", "Graduado guardado correctamente");
     }
 }

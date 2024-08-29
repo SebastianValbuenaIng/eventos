@@ -29,6 +29,7 @@ public class BoletaServiceImpl implements BoletaService {
     private final PersonaRepository personaRepository;
     private final CompraRepository compraRepository;
     private final BoletaCompraRepository boletaCompraRepository;
+    private final EstadoCompraRepository estadoCompraRepository;
 
     @Override
     public BoletaRolResponse getBoletasByRol(String rol) {
@@ -178,13 +179,31 @@ public class BoletaServiceImpl implements BoletaService {
 
     @Override
     public Map<String, String> eliminarDelCarrito(Integer id_carrito_persona, String documento) {
-        personaRepository.findByDocumento(documento).orElseThrow(() -> new IdNotFoundException("documento"));
+        PersonaEntity personaFound = personaRepository.findByDocumento(documento).orElseThrow(() -> new IdNotFoundException("documento"));
 
         CarritoPersonaEntity foundCarritoPersonaById = carritoPersonaRepository
                 .findById(id_carrito_persona)
                 .orElseThrow(() -> new IdNotFoundException("carrito_persona"));
 
         carritoPersonaRepository.delete(foundCarritoPersonaById);
+
+        List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
+
+        if (carritoPersona.isEmpty()) {
+            EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository.findByDescripcion("En espera")
+                    .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
+            Optional<CompraEntity> compra = compraRepository
+                    .findByNumeroReferenciaAndEstadoCompra(Long.valueOf(personaFound.getDocumento()), estadoCompraEnEspera);
+
+            if (compra.isPresent()) {
+                EstadoCompraEntity estadoCompraCancelado = estadoCompraRepository.findByDescripcion("Eliminado")
+                        .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
+                compra.get().setEstadoCompra(estadoCompraCancelado);
+                compraRepository.save(compra.get());
+            }
+        }
 
         return Map.of("message", "proceso completado correctamente");
     }

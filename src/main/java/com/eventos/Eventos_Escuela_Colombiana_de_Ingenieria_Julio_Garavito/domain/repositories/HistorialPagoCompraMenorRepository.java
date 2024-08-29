@@ -1,0 +1,7 @@
+package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories;
+
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.entities.HistorialPagoCompraMenorEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface HistorialPagoCompraMenorRepository extends JpaRepository<HistorialPagoCompraMenorEntity, Integer> {
+}

@@ -22,4 +22,13 @@ public class IniciarSesionController {
     public ResponseEntity<InicioSesionResponse> iniciarSesionGraduado(@RequestParam String documento) {
         return ResponseEntity.ok(iniciarSesionService.iniciarSesionGraduado(documento));
     }
+
+    @PostMapping("/graduado/datos")
+    public ResponseEntity<Object> insertDatosGraduado(
+            @RequestParam(required = false) String correo,
+            @RequestParam(required = false) String telefono,
+            @RequestParam String documento
+    ) {
+        return ResponseEntity.ok(iniciarSesionService.insertDatosGraduado(correo, telefono, documento));
+    }
 }

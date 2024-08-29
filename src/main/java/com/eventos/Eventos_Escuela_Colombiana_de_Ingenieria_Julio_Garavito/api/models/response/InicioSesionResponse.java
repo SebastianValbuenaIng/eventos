@@ -21,4 +21,5 @@ public class InicioSesionResponse {
     private Boolean carrito_boleta;
     private Integer cantidad_boletas_carrito;
     private Boolean boletas_maximas;
+    private Boolean admin;
 }
