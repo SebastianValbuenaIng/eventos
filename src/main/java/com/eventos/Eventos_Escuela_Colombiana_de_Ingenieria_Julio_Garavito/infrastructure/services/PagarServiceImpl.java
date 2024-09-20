@@ -4,7 +4,6 @@ import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domai
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domain.repositories.*;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.PagarService;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.IdNotFoundException;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.MessageBadRequestException;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.ServerErrorException;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.helpers.ReadHTMLTemplate;
 import jakarta.mail.MessagingException;
@@ -34,104 +33,6 @@ public class PagarServiceImpl implements PagarService {
     private final JavaMailSender javaMailSender;
     private final Environment environment;
     private final ReadHTMLTemplate readHtmlTemplate;
-
-    @Override
-    public Map<String, Long> pagar(String documento, Integer valor) {
-        PersonaEntity personaFound = personaRepository
-                .findByDocumento(documento)
-                .orElseThrow(() -> new IdNotFoundException("persona"));
-
-        EstadoCompraEntity estadoCompra = estadoCompraRepository
-                .findByDescripcion("En espera")
-                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
-
-        Optional<CompraEntity> compraFound = compraRepository
-                .findByEstadoCompraAndPersona(estadoCompra, personaFound);
-
-        int valorTotal = getValorTotal(valor, personaFound);
-
-        if (compraFound.isPresent()) {
-            compraFound.get().setValor(valorTotal);
-            compraRepository.save(compraFound.get());
-
-            return Map.of("id_referencia", compraFound.get().getNumeroReferencia());
-        }
-
-        int numeroDocumentoPersonaSinLetras = removeLetters(personaFound.getDocumento());
-
-        CompraEntity compra = CompraEntity
-                .builder()
-                .fecha_creacion(LocalDateTime.now())
-                .fecha_pago(null)
-                .valor(valorTotal)
-                .persona(personaFound)
-                .estadoCompra(estadoCompra)
-                .numeroReferencia((long) numeroDocumentoPersonaSinLetras)
-                .build();
-
-        CompraEntity compraSaved = compraRepository.save(compra);
-
-        return Map.of("id_referencia", compraSaved.getNumeroReferencia());
-    }
-
-    private int getValorTotal(Integer valor, PersonaEntity personaFound) {
-        List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
-        int valorTotal = getValorTotal(carritoPersona);
-
-        if (valor != valorTotal) throw new MessageBadRequestException("El valor no es el adecuado");
-        return valorTotal;
-    }
-
-    private static int removeLetters(String input) {
-        // Usamos una expresión regular para reemplazar todas las letras con una cadena vacía
-        String numbersOnly = input.replaceAll("[a-zA-Z]", "");
-
-        // Convertimos la cadena resultants en un entero
-        // Agregamos un control para evitar excepciones si la cadena está vacía
-        if (!numbersOnly.isEmpty()) {
-            return Integer.parseInt(numbersOnly);
-        } else {
-            // Devolvemos 0 si no hay números en la cadena original
-            throw new ServerErrorException();
-        }
-    }
-
-    private static int getValorTotal(List<CarritoPersonaEntity> carritoPersona) {
-        List<Integer> valoresFiltrados = carritoPersona.stream()
-                .filter(carritoPersonaEntity -> !carritoPersonaEntity.getBoleta().getRol().getDescripcion().equals("Estudiante"))
-                .map(carritoPersonaEntity -> carritoPersonaEntity.getBoleta().getValor())
-                .toList();
-
-        int valorConDescuentoParesInvitado = getValorConDescuento(valoresFiltrados);
-
-        int valorBoleta = carritoPersona.stream()
-                .filter(carritoPersonaEntity -> carritoPersonaEntity.getBoleta().getRol().getDescripcion().equals("Estudiante"))
-                .map(carritoPersonaEntity -> carritoPersonaEntity.getBoleta().getValor())
-                .findFirst()
-                .orElse(0);
-
-        return valorConDescuentoParesInvitado + valorBoleta;
-    }
-
-    private static int getValorConDescuento(List<Integer> valoresFiltrados) {
-        int valorConDescuento = 0;
-
-        for (int i = 0; i < valoresFiltrados.size(); i++) {
-            int valorBoleta = valoresFiltrados.get(i);
-
-            if (i % 2 == 0 && i + 1 < valoresFiltrados.size()) {
-                // Si es parte de un par, restar 10,000 a cada boleta del par
-                valorConDescuento += valorBoleta - 10000;
-            } else if (i % 2 == 1) {
-                // Resta 10,000 a la segunda boleta del par
-                valorConDescuento += valorBoleta - 10000;
-            } else {
-                // Si es la última boleta en un caso impar, mantener su valor original
-                valorConDescuento += valorBoleta;
-            }
-        }
-        return valorConDescuento;
-    }
 
     @Override
     public void generatePay(String descripcion, String value, String estado_pol) {
@@ -224,8 +125,8 @@ public class PagarServiceImpl implements PagarService {
 
         return String.format("""
                 <p class="texto">Hola, %s: </p>
-                <p class="texto">Se le informa que se ha recibido su pago correctamente por un valor de: <b>%s COP</b>.</p>
-                <p>El número de sus boletas son: </p>
+                <p class="texto">Se le informa que se ha recibido su pago correctamente por un valor de: <b>%s COP</b>. Recuerde que el día del evento, para <b>ingresar al restaurante</b>, debe presentar su boleta con la respectiva numeración.</p>
+                <p>El número de su(s) boletas es: </p>
                 <br />
                 %s
                 """, personaFound.getNombre(), formatoCOP.format(compraFound.getValor()), boletasPersonaEmail);

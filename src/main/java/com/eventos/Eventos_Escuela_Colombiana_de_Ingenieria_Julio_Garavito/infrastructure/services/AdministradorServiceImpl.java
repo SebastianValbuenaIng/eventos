@@ -82,9 +82,13 @@ public class AdministradorServiceImpl implements AdministradorService {
 
         List<CompraEntity> findAllCompras = (List<CompraEntity>) compraRepository.findAll();
 
+        List<CompraEntity> findAllCompraFilterEstadoCompra = findAllCompras.stream()
+                .filter(compraEntity -> !compraEntity.getEstadoCompra().getDescripcion().equals("Eliminado"))
+                .toList();
+
         List<AdminCompraResponse> boletasAdmin = new ArrayList<>();
 
-        findAllCompras.forEach(compraEntity -> {
+        findAllCompraFilterEstadoCompra.forEach(compraEntity -> {
           AdminCompraResponse adminCompraResponse = AdminCompraResponse
                   .builder()
                   .id(compraEntity.getId())
@@ -93,6 +97,7 @@ public class AdministradorServiceImpl implements AdministradorService {
                   .valor(compraEntity.getValor())
                   .estado_pago(compraEntity.getEstadoCompra().getDescripcion())
                   .rol(compraEntity.getPersona().getRol().getDescripcion())
+                  .telefono(compraEntity.getPersona().getTelefono())
                   .build();
 
           boletasAdmin.add(adminCompraResponse);

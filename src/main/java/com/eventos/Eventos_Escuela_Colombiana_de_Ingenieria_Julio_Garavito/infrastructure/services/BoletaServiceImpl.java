@@ -9,6 +9,7 @@ import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.domai
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.BoletaService;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.IdNotFoundException;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.MessageBadRequestException;
+import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.utils.errors.ServerErrorException;
 import lombok.AllArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -63,21 +64,21 @@ public class BoletaServiceImpl implements BoletaService {
         LocalDate fechaActual = LocalDate.now().plusMonths(2).plusDays(2);
 
         if (fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_preventa()) ||
-                fechaActual.isEqual(boletaFound.getEvento().getFecha_final_preventa()) ||
-                (
-                        fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_preventa()) &&
-                                fechaActual.isBefore(boletaFound.getEvento().getFecha_final_preventa())
-                ) ||
-                fechaActual.isBefore(boletaFound.getEvento().getFecha_inicio_preventa())
+            fechaActual.isEqual(boletaFound.getEvento().getFecha_final_preventa()) ||
+            (
+                    fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_preventa()) &&
+                    fechaActual.isBefore(boletaFound.getEvento().getFecha_final_preventa())
+            ) ||
+            fechaActual.isBefore(boletaFound.getEvento().getFecha_inicio_preventa())
         ) {
             fechaFin = boletaFound.getEvento().getFecha_final_preventa();
         } else if (
                 fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_regular()) ||
-                        fechaActual.isEqual(boletaFound.getEvento().getFecha_final_regular()) ||
-                        (
-                                fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_regular()) &&
-                                        fechaActual.isBefore(boletaFound.getEvento().getFecha_final_regular())
-                        )
+                fechaActual.isEqual(boletaFound.getEvento().getFecha_final_regular()) ||
+                (
+                        fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_regular()) &&
+                        fechaActual.isBefore(boletaFound.getEvento().getFecha_final_regular())
+                )
         ) {
             fechaFin = boletaFound.getEvento().getFecha_final_regular();
         } else {
@@ -159,7 +160,85 @@ public class BoletaServiceImpl implements BoletaService {
             carritoPersonaRepository.save(newCarritoPersona);
         }
 
+        Map<String, String> message = getCompraPersona(persona);
+        if (message != null) return message;
+
         return Map.of("message", "proceso completado correctamente");
+    }
+
+    private Map<String, String> getCompraPersona(PersonaEntity persona) {
+        EstadoCompraEntity estadoCompra = estadoCompraRepository
+                .findByDescripcion("En espera")
+                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
+        Optional<CompraEntity> compraFound = compraRepository
+                .findByEstadoCompraAndPersona(estadoCompra, persona);
+
+        int valorTotal = getValorTotal(persona);
+
+        if (compraFound.isPresent()) {
+            compraFound.get().setValor(valorTotal);
+            compraRepository.save(compraFound.get());
+
+            return Map.of("message", "proceso completado correctamente");
+        }
+
+        int numeroDocumentoPersonaSinLetras = removeLetters(persona.getDocumento());
+
+        CompraEntity compra = CompraEntity
+                .builder()
+                .fecha_creacion(LocalDateTime.now())
+                .fecha_pago(null)
+                .valor(valorTotal)
+                .persona(persona)
+                .estadoCompra(estadoCompra)
+                .numeroReferencia((long) numeroDocumentoPersonaSinLetras)
+                .build();
+
+        compraRepository.save(compra);
+        return null;
+    }
+
+    private int getValorTotal(PersonaEntity personaFound) {
+        List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
+        return getValorTotal(carritoPersona);
+    }
+
+    private static int getValorTotal(List<CarritoPersonaEntity> carritoPersona) {
+        List<Integer> valoresFiltrados = carritoPersona.stream()
+                .filter(carritoPersonaEntity -> !carritoPersonaEntity.getBoleta().getRol().getDescripcion().equals("Estudiante"))
+                .map(carritoPersonaEntity -> carritoPersonaEntity.getBoleta().getValor())
+                .toList();
+
+        int valorConDescuentoParesInvitado = getValorConDescuento(valoresFiltrados);
+
+        int valorBoleta = carritoPersona.stream()
+                .filter(carritoPersonaEntity -> carritoPersonaEntity.getBoleta().getRol().getDescripcion().equals("Estudiante"))
+                .map(carritoPersonaEntity -> carritoPersonaEntity.getBoleta().getValor())
+                .findFirst()
+                .orElse(0);
+
+        return valorConDescuentoParesInvitado + valorBoleta;
+    }
+
+    private static int getValorConDescuento(List<Integer> valoresFiltrados) {
+        int valorConDescuento = 0;
+
+        for (int i = 0; i < valoresFiltrados.size(); i++) {
+            int valorBoleta = valoresFiltrados.get(i);
+
+            if (i % 2 == 0 && i + 1 < valoresFiltrados.size()) {
+                // Si es parte de un par, restar 10,000 a cada boleta del par
+                valorConDescuento += valorBoleta - 10000;
+            } else if (i % 2 == 1) {
+                // Resta 10,000 a la segunda boleta del par
+                valorConDescuento += valorBoleta - 10000;
+            } else {
+                // Si es la última boleta en un caso impar, mantener su valor original
+                valorConDescuento += valorBoleta;
+            }
+        }
+        return valorConDescuento;
     }
 
     private void validarRequestAgregar(BoletaPersonaRequest boletaPersonaRequest) {
@@ -175,6 +254,20 @@ public class BoletaServiceImpl implements BoletaService {
         validEmpty(boletaPersonaRequest.getCorreo(), "nombre");
         validEmpty(boletaPersonaRequest.getCorreo(), "documento");
         validEmpty(boletaPersonaRequest.getCorreo(), "rol");
+    }
+
+    private static int removeLetters(String input) {
+        // Usamos una expresión regular para reemplazar todas las letras con una cadena vacía
+        String numbersOnly = input.replaceAll("[a-zA-Z]", "");
+
+        // Convertimos la cadena resultants en un entero
+        // Agregamos un control para evitar excepciones si la cadena está vacía
+        if (!numbersOnly.isEmpty()) {
+            return Integer.parseInt(numbersOnly);
+        } else {
+            // Devolvemos 0 si no hay números en la cadena original
+            throw new ServerErrorException();
+        }
     }
 
     @Override
@@ -209,14 +302,16 @@ public class BoletaServiceImpl implements BoletaService {
     }
 
     @Override
-    public List<BoletaCarritoResponse> getBoletasCarritoPersona(String nro_documento) {
+    public Map<String, Object> getBoletasCarritoPersona(String nro_documento) {
         PersonaEntity personaFound = personaRepository
                 .findByDocumento(nro_documento)
                 .orElseThrow(() -> new IdNotFoundException("persona"));
 
         List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
 
-        return carritoPersona.stream()
+        Map<String, Object> returnBoletasCarritoPersona = new HashMap<>();
+
+        List<BoletaCarritoResponse> boletaCarrito = carritoPersona.stream()
                 .map(carritoPersonaEntity -> BoletaCarritoResponse
                         .builder()
                         .boleta_principal(!Objects.equals(carritoPersonaEntity.getBoleta().getRol().getDescripcion(), "Invitado"))
@@ -224,6 +319,22 @@ public class BoletaServiceImpl implements BoletaService {
                         .id_boleta_carrito(carritoPersonaEntity.getId())
                         .build())
                 .toList();
+
+        EstadoCompraEntity estadoCompra = estadoCompraRepository
+                .findByDescripcion("En espera")
+                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
+        Optional<CompraEntity> compraFound = compraRepository
+                .findByEstadoCompraAndPersona(estadoCompra, personaFound);
+
+        Long numero_referencia = null;
+
+        if (compraFound.isPresent()) numero_referencia = compraFound.get().getNumeroReferencia();
+
+        returnBoletasCarritoPersona.put("boletas", boletaCarrito);
+        returnBoletasCarritoPersona.put("numero_referencia", numero_referencia);
+
+        return returnBoletasCarritoPersona;
     }
 
     @Override

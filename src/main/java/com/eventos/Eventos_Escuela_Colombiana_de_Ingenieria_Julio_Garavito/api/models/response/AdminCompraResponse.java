@@ -17,5 +17,6 @@ public class AdminCompraResponse {
     private LocalDateTime fecha_pago;
     private Integer valor;
     private String estado_pago;
+    private String telefono;
     private String rol;
 }

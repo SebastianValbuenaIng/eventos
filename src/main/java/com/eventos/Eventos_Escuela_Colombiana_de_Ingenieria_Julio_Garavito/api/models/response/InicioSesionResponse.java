@@ -17,7 +17,6 @@ public class InicioSesionResponse {
     private String correo;
     private String nro_documento;
     private String telefono;
-    private Boolean pago_boleta_rol_principal;
     private Boolean carrito_boleta;
     private Integer cantidad_boletas_carrito;
     private Boolean boletas_maximas;

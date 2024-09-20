@@ -12,7 +12,7 @@ public interface BoletaService {
     BoletaRolResponse getBoletasByRol(String rol);
     Map<String, String> agregarAlCarrito(BoletaPersonaRequest boletaPersonaRequest);
     Map<String, String> eliminarDelCarrito(Integer id_carrito_persona,  String documento);
-    List<BoletaCarritoResponse> getBoletasCarritoPersona(String nro_documento);
+    Map<String, Object> getBoletasCarritoPersona(String nro_documento);
     List<BoletaPagadaResponse> getBoletasPagadaPersona(String nro_documento);
     void changeValuesBoletaByDayFechaInicioRegular();
 }

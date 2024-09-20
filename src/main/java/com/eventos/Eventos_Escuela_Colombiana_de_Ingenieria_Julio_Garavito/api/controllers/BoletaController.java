@@ -1,7 +1,6 @@
 package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.controllers;
 
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.request.BoletaPersonaRequest;
-import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaCarritoResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaPagadaResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.api.models.response.BoletaRolResponse;
 import com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infrastructure.abstract_services.BoletaService;
@@ -35,7 +34,7 @@ public class BoletaController {
     }
 
     @GetMapping("/carrito")
-    public ResponseEntity<List<BoletaCarritoResponse>> getBoletasCarrito(@RequestParam String nro_documento) {
+    public ResponseEntity<Map<String, Object>> getBoletasCarrito(@RequestParam String nro_documento) {
         return ResponseEntity.ok(boletaService.getBoletasCarritoPersona(nro_documento));
     }
 

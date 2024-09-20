@@ -20,9 +20,4 @@ public class PagarController {
         pagarService.generatePay(descripcion, valor, estado_pol);
         return ResponseEntity.ok().build();
     }
-
-    @PostMapping
-    public ResponseEntity<Map<String, Long>> pagar(@RequestParam String documento, @RequestParam Integer valor) {
-        return ResponseEntity.ok(pagarService.pagar(documento, valor));
-    }
 }

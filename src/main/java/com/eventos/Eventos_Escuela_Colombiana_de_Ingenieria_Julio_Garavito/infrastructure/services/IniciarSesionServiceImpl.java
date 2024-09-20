@@ -76,7 +76,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                         .nombre(String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
-                        .pago_boleta_rol_principal(false)
                         .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                         .admin(true)
                         .build();
@@ -94,7 +93,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                         .nombre(String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
-                        .pago_boleta_rol_principal(false)
                         .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                         .admin(true)
                         .build();
@@ -141,7 +139,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                         .nombre(String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
-                        .pago_boleta_rol_principal(false)
                         .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                         .build();
             }
@@ -176,7 +173,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                     .nombre(String.valueOf(returnQuery.get("nombre")))
                     .carrito_boleta(carrito_persona)
                     .cantidad_boletas_carrito(listCarritoPersona.size())
-                    .pago_boleta_rol_principal(pago_boleta_principal)
                     .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                     .admin(false)
                     .build();
@@ -240,7 +236,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                         .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                         .carrito_boleta(false)
                         .cantidad_boletas_carrito(0)
-                        .pago_boleta_rol_principal(false)
                         .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                         .build();
             }
@@ -275,7 +270,6 @@ public class IniciarSesionServiceImpl implements IniciarSesionService {
                     .nombre(String.valueOf(returnQuery.get("nombre")).equals("null") ? null : String.valueOf(returnQuery.get("nombre")))
                     .carrito_boleta(carrito_persona)
                     .cantidad_boletas_carrito(listCarritoPersona.size())
-                    .pago_boleta_rol_principal(pago_boleta_principal)
                     .boletas_maximas(findAllBoletasPagadas.size() >= 500)
                     .build();
 
