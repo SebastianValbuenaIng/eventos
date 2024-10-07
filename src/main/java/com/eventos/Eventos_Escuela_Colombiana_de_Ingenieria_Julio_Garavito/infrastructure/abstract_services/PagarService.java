@@ -2,5 +2,5 @@ package com.eventos.Eventos_Escuela_Colombiana_de_Ingenieria_Julio_Garavito.infr
 
 public interface PagarService {
     void generatePay(String descripcion, String valor, String estado_pol);
-    void enviarCorreoPrueba();
+    void enviarCorreos(String correo);
 }

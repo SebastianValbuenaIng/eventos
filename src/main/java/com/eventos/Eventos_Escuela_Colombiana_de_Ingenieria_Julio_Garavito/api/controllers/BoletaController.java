@@ -29,7 +29,8 @@ public class BoletaController {
     }
 
     @DeleteMapping
-    public ResponseEntity<Map<String, String>> eliminarDelCarrito(@RequestParam Integer id_carrito_persona, @RequestParam String documento) {
+    public ResponseEntity<Map<String, String>> eliminarDelCarrito(@RequestParam Integer id_carrito_persona,
+                                                                  @RequestParam String documento) {
         return ResponseEntity.ok(boletaService.eliminarDelCarrito(id_carrito_persona, documento));
     }
 

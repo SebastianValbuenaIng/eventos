@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @AllArgsConstructor
@@ -282,13 +283,41 @@ public class BoletaServiceImpl implements BoletaService {
 
         List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
 
+        EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository.findByDescripcion("En espera")
+                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
+
+        Optional<CompraEntity> compra = compraRepository
+                .findByNumeroReferenciaAndEstadoCompra(Long.valueOf(personaFound.getDocumento()), estadoCompraEnEspera);
+
+        if (!carritoPersona.isEmpty()) {
+            if (compra.isPresent()) {
+                AtomicInteger index = new AtomicInteger(0);
+
+                AtomicInteger valorConDescuento = new AtomicInteger();
+                carritoPersona.forEach(carritoPersonaEntity -> {
+                    int valorOriginal = carritoPersonaEntity.getBoleta().getValor();
+
+                    // Verificar si el rol no es "Estudiante" antes de aplicar el descuento
+                    if (!carritoPersonaEntity.getBoleta().getRol().getDescripcion().equals("Estudiante")) {
+                        if (foundCarritoPersonaById.getBoleta().getId().equals(carritoPersonaEntity.getBoleta().getId())) {
+                            // Aplicar lógica de descuento para cada boleta según su posición en la lista
+                            if (index.get() % 2 == 0 && index.get() + 1 < carritoPersona.size()) {
+                                // Si es parte de un par, restar 10,000 a la primera boleta del par
+                                valorConDescuento.set(valorOriginal - 20000);
+                            } else if (index.get() % 2 == 1) {
+                                // Restar 10,000 a la segunda boleta del par
+                                valorConDescuento.set(valorOriginal - 20000);
+                            }
+                        }
+                    }
+                });
+
+                compra.get().setValor(compra.get().getValor() - valorConDescuento.get());
+                compraRepository.save(compra.get());
+            }
+        }
+
         if (carritoPersona.isEmpty()) {
-            EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository.findByDescripcion("En espera")
-                    .orElseThrow(() -> new IdNotFoundException("estado_compra"));
-
-            Optional<CompraEntity> compra = compraRepository
-                    .findByNumeroReferenciaAndEstadoCompra(Long.valueOf(personaFound.getDocumento()), estadoCompraEnEspera);
-
             if (compra.isPresent()) {
                 EstadoCompraEntity estadoCompraCancelado = estadoCompraRepository.findByDescripcion("Eliminado")
                         .orElseThrow(() -> new IdNotFoundException("estado_compra"));

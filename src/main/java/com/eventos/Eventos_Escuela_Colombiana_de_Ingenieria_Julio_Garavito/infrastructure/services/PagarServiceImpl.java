@@ -84,26 +84,27 @@ public class PagarServiceImpl implements PagarService {
         enviarCorreo(htmlBody, personaFound.getCorreo());
     }
 
-    @Override
-    public void enviarCorreoPrueba() {
-        EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository
-                .findByDescripcion("Completado")
-                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
-
-        CompraEntity compraFound = compraRepository
-                .findByNumeroReferenciaAndEstadoCompra(Long.valueOf("52848877"), estadoCompraEnEspera)
-                .orElseThrow(() -> new IdNotFoundException("compra"));
-
+    public void enviarCorreos(String correo) {
         PersonaEntity personaFound = personaRepository
-                .findByDocumento("52848877")
+                .findByCorreo(correo)
                 .orElseThrow(() -> new IdNotFoundException("persona"));
 
-        List<BoletaCompraEntity> boletasCompras = boletaCompraRepository.findAll();
+        List<CompraEntity> comprasPersona = compraRepository
+                .findAllByPersona(personaFound);
 
-        String htmlBody = getEmail(boletasCompras, personaFound, compraFound);
+        List<CompraEntity> compraFound = comprasPersona
+                .stream()
+                .filter(compra -> compra.getEstadoCompra().getDescripcion().equals("Completado"))
+                .toList();
 
-        // * Enviar correo
-        enviarCorreo(htmlBody, personaFound.getCorreo());
+        compraFound.forEach(compra -> {
+            List<BoletaCompraEntity> boletasCompras = boletaCompraRepository.findAllByCompra(compra);
+
+            String htmlBody = getEmail(boletasCompras, personaFound, compra);
+
+            // * Enviar correo
+            enviarCorreo(htmlBody, correo);
+        });
     }
 
     private static String getEmail(List<BoletaCompraEntity> boletasCompras, PersonaEntity personaFound, CompraEntity compraFound) {
