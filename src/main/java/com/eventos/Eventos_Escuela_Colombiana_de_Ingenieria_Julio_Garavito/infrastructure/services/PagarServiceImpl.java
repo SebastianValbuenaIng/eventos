@@ -81,7 +81,7 @@ public class PagarServiceImpl implements PagarService {
         String htmlBody = getEmail(boletasCompras, personaFound, compraFound);
 
         // * Enviar correo
-        enviarCorreo(htmlBody, personaFound.getCorreo());
+        enviarCorreoPago(htmlBody, personaFound.getCorreo());
     }
 
     public void enviarCorreos(String correo) {
@@ -100,10 +100,29 @@ public class PagarServiceImpl implements PagarService {
         compraFound.forEach(compra -> {
             List<BoletaCompraEntity> boletasCompras = boletaCompraRepository.findAllByCompra(compra);
 
-            String htmlBody = getEmail(boletasCompras, personaFound, compra);
+            String htmlBody = getEmailEstudiantes(boletasCompras, personaFound);
 
             // * Enviar correo
-            enviarCorreo(htmlBody, correo);
+            enviarCorreos(htmlBody, correo);
+        });
+    }
+
+    private void enviarCorreos(String content, String correo) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                MimeMessage mailMessage = javaMailSender.createMimeMessage();
+
+                String htmlBody = readHtmlTemplate.readHtmlTemplate(content, "plantilla-boleta-especial.html");
+                mailMessage.setContent(htmlBody, "text/html; charset=UTF-8");
+                mailMessage.setFrom(Objects.requireNonNull(environment.getProperty("spring.mail.username")));
+                mailMessage.setSubject("Boleta Especial");
+                mailMessage.setRecipients(MimeMessage.RecipientType.TO, correo);
+                mailMessage.setRecipients(MimeMessage.RecipientType.BCC, "paulina.alvarado@escuelaing.edu.co");
+                javaMailSender.send(mailMessage);
+            } catch (MessagingException e) {
+                System.out.println(e.getMessage());
+                throw new ServerErrorException();
+            }
         });
     }
 
@@ -131,6 +150,54 @@ public class PagarServiceImpl implements PagarService {
                 <br />
                 %s
                 """, personaFound.getNombre(), formatoCOP.format(compraFound.getValor()), boletasPersonaEmail);
+    }
+
+    private static String getEmailInvitacionEspecial(List<BoletaCompraEntity> boletasCompras, PersonaEntity personaFound) {
+        StringBuilder boletasPersonaEmail = new StringBuilder();
+
+        for (BoletaCompraEntity boletasCompra : boletasCompras) {
+            boletasPersonaEmail.append(String.format("""
+                    <div class="container-boletas">
+                        <img src="https://res.cloudinary.com/dskibbwgt/image/upload/c_scale,h_85,w_265/eg4xtvp1iibz9c38nb9g.jpg" alt="imagen boleta" className='image-boleta'/>
+                        <p class="texto-consecutivo-boleta"><b> Boleta Nº: %s </b></p>
+                    </div>
+                    <br />
+                    <hr>
+                    <br />
+                    """, boletasCompra.getConsecutivoBoleta()));
+        }
+
+        return String.format("""
+                <p class="texto">Hola, %s: </p>
+                <p class="texto">Se le informa que se ha generado una boleta de invitado especial, para asistir al evento de los 30 años de Ingeniería Industrial. Recuerde que el día del evento, para <b>ingresar al restaurante</b>, debe presentar su boleta con la respectiva numeración.</p>
+                <p>El número de su(s) boletas es: </p>
+                <br />
+                %s
+                """, personaFound.getNombre(), boletasPersonaEmail);
+    }
+
+    private static String getEmailEstudiantes(List<BoletaCompraEntity> boletasCompras, PersonaEntity personaFound) {
+        StringBuilder boletasPersonaEmail = new StringBuilder();
+
+        for (BoletaCompraEntity boletasCompra : boletasCompras) {
+            boletasPersonaEmail.append(String.format("""
+                    <div class="container-boletas">
+                        <img src="https://res.cloudinary.com/dskibbwgt/image/upload/c_scale,h_85,w_265/eg4xtvp1iibz9c38nb9g.jpg" alt="imagen boleta" className='image-boleta'/>
+                        <p class="texto-consecutivo-boleta"><b> Boleta Nº: %s </b></p>
+                    </div>
+                    <br />
+                    <hr>
+                    <br />
+                    """, boletasCompra.getConsecutivoBoleta()));
+        }
+
+        return String.format("""
+                <p class="texto">Hola, %s: </p>
+                <p class="texto">Se le informa que se ha generado una boleta especial, para asistir al evento de los 30 años de Ingeniería Industrial. Recuerde que el día del evento, para <b>ingresar al restaurante</b>, debe presentar su boleta con la respectiva numeración.</p>
+                <p>El número de su(s) boletas es: </p>
+                <br />
+                %s
+                """, personaFound.getNombre(), boletasPersonaEmail);
     }
 
     private List<BoletaCompraEntity> insertsBoletaCompraAndDeleteCarritoPersona(PersonaEntity personaFound, CompraEntity compraFound) {
@@ -170,7 +237,7 @@ public class PagarServiceImpl implements PagarService {
         return boletaCompraRepository.saveAllAndFlush(boletaCompraDb);
     }
 
-    private void enviarCorreo(String content, String correo) {
+    private void enviarCorreoPago(String content, String correo) {
         CompletableFuture.runAsync(() -> {
             try {
                 MimeMessage mailMessage = javaMailSender.createMimeMessage();
@@ -187,27 +254,4 @@ public class PagarServiceImpl implements PagarService {
             }
         });
     }
-
-//    @Scheduled(cron = "0 0 0 * * *", zone = "America/Bogota")
-//    public void revisarCompras() {
-//        List<CompraEntity> compras = (List<CompraEntity>) compraRepository.findAll();
-//
-//        LocalDateTime fechaActual = LocalDateTime.now();
-//
-//        EstadoCompraEntity estadoCompra = estadoCompraRepository
-//                .findByDescripcion("Cancelado")
-//                .orElseThrow(() -> new IdNotFoundException("estado_compra"));
-//
-//        List<CompraEntity> comprasFiltered = compras
-//                .stream()
-//                .filter(compraEntity -> compraEntity.getEstadoCompra().getDescripcion().equals("En espera"))
-//                .toList();
-//
-//        comprasFiltered.forEach(compra -> {
-//            if (compra.getFecha_creacion().isBefore(fechaActual.minusHours(24))) {
-//                compra.setEstadoCompra(estadoCompra);
-//                compraRepository.save(compra);
-//            }
-//        });
-//    }
 }

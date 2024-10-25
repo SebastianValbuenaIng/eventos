@@ -61,37 +61,37 @@ public class BoletaServiceImpl implements BoletaService {
         // * Precio total restando 10.000 COP por boleta
         boletas.put("boleta_doble", (boletaInvitadoFound.getValor() - 10000) * 2);
 
-        LocalDate fechaFin;
-        LocalDate fechaActual = LocalDate.now().plusMonths(2).plusDays(2);
+        LocalDate fechaFin = boletaFound.getEvento().getFecha_final_regular();
+        LocalDate fechaActual = LocalDate.now();
 
-        if (fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_preventa()) ||
-            fechaActual.isEqual(boletaFound.getEvento().getFecha_final_preventa()) ||
-            (
-                    fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_preventa()) &&
-                    fechaActual.isBefore(boletaFound.getEvento().getFecha_final_preventa())
-            ) ||
-            fechaActual.isBefore(boletaFound.getEvento().getFecha_inicio_preventa())
-        ) {
-            fechaFin = boletaFound.getEvento().getFecha_final_preventa();
-        } else if (
-                fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_regular()) ||
-                fechaActual.isEqual(boletaFound.getEvento().getFecha_final_regular()) ||
-                (
-                        fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_regular()) &&
-                        fechaActual.isBefore(boletaFound.getEvento().getFecha_final_regular())
-                )
-        ) {
-            fechaFin = boletaFound.getEvento().getFecha_final_regular();
-        } else {
-            fechaFin = LocalDate.now();
-        }
+//        if (fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_preventa()) ||
+//            fechaActual.isEqual(boletaFound.getEvento().getFecha_final_preventa()) ||
+//            (
+//                    fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_preventa()) &&
+//                    fechaActual.isBefore(boletaFound.getEvento().getFecha_final_preventa())
+//            ) ||
+//            fechaActual.isBefore(boletaFound.getEvento().getFecha_inicio_preventa())
+//        ) {
+//            fechaFin = boletaFound.getEvento().getFecha_final_preventa();
+//        } else if (
+//                fechaActual.isEqual(boletaFound.getEvento().getFecha_inicio_regular()) ||
+//                fechaActual.isEqual(boletaFound.getEvento().getFecha_final_regular()) ||
+//                (
+//                        fechaActual.isAfter(boletaFound.getEvento().getFecha_inicio_regular()) &&
+//                        fechaActual.isBefore(boletaFound.getEvento().getFecha_final_regular())
+//                )
+//        ) {
+//            fechaFin = boletaFound.getEvento().getFecha_final_regular();
+//        } else {
+//            fechaFin = LocalDate.now();
+//        }
 
         return BoletaRolResponse
                 .builder()
                 .precios_boletas(boletas)
                 .id_boleta_principal(boletaFound.getId())
                 .id_boleta_invitado(boletaInvitadoFound.getId())
-                .fecha_venta_fin(fechaFin)
+                .fecha_venta_fin((!fechaActual.equals(fechaFin) && !fechaActual.isAfter(fechaFin)))
                 .build();
     }
 
@@ -279,43 +279,57 @@ public class BoletaServiceImpl implements BoletaService {
                 .findById(id_carrito_persona)
                 .orElseThrow(() -> new IdNotFoundException("carrito_persona"));
 
+// Eliminar la boleta seleccionada del carrito
         carritoPersonaRepository.delete(foundCarritoPersonaById);
 
+// Recuperar las boletas restantes en el carrito
         List<CarritoPersonaEntity> carritoPersona = carritoPersonaRepository.findByPersona(personaFound);
 
+// Buscar el estado de la compra "En espera"
         EstadoCompraEntity estadoCompraEnEspera = estadoCompraRepository.findByDescripcion("En espera")
                 .orElseThrow(() -> new IdNotFoundException("estado_compra"));
 
+        // Verificar si la compra existe y está en estado "En espera"
         Optional<CompraEntity> compra = compraRepository
                 .findByNumeroReferenciaAndEstadoCompra(Long.valueOf(personaFound.getDocumento()), estadoCompraEnEspera);
 
-        if (!carritoPersona.isEmpty()) {
-            if (compra.isPresent()) {
-                AtomicInteger index = new AtomicInteger(0);
+        if (!carritoPersona.isEmpty() && compra.isPresent()) {
+            AtomicInteger valorTotal = new AtomicInteger();
+            List<CarritoPersonaEntity> boletasConDescuento = new ArrayList<>();
 
-                AtomicInteger valorConDescuento = new AtomicInteger();
-                carritoPersona.forEach(carritoPersonaEntity -> {
-                    int valorOriginal = carritoPersonaEntity.getBoleta().getValor();
+            // Recalcular el valor total y seleccionar solo las boletas con rol diferente de "estudiante"
+            carritoPersona.forEach(carritoPersonaEntity -> {
+                int valorBoleta = carritoPersonaEntity.getBoleta().getValor();
+                valorTotal.addAndGet(valorBoleta);
 
-                    // Verificar si el rol no es "Estudiante" antes de aplicar el descuento
-                    if (!carritoPersonaEntity.getBoleta().getRol().getDescripcion().equals("Estudiante")) {
-                        if (foundCarritoPersonaById.getBoleta().getId().equals(carritoPersonaEntity.getBoleta().getId())) {
-                            // Aplicar lógica de descuento para cada boleta según su posición en la lista
-                            if (index.get() % 2 == 0 && index.get() + 1 < carritoPersona.size()) {
-                                // Si es parte de un par, restar 10,000 a la primera boleta del par
-                                valorConDescuento.set(valorOriginal - 20000);
-                            } else if (index.get() % 2 == 1) {
-                                // Restar 10,000 a la segunda boleta del par
-                                valorConDescuento.set(valorOriginal - 20000);
-                            }
-                        }
-                    }
-                });
+                // Solo consideramos las boletas que no son de estudiantes
+                if (!"Estudiante".equals(carritoPersonaEntity.getBoleta().getRol().getDescripcion())) {
+                    boletasConDescuento.add(carritoPersonaEntity);
+                }
+            });
 
-                compra.get().setValor(compra.get().getValor() - valorConDescuento.get());
-                compraRepository.save(compra.get());
+            // Aplicar descuento solo si hay pares de boletas sin rol de "estudiante"
+            int cantidadBoletasConDescuento = boletasConDescuento.size();
+            int descuento = 0;
+
+            if (cantidadBoletasConDescuento % 2 == 0) {
+                // Si hay un número par de boletas que no son de "estudiante", aplicamos el descuento
+                descuento = (cantidadBoletasConDescuento / 2) * 20000;  // 20,000 por cada par
+            } else if (cantidadBoletasConDescuento > 1) {
+                // Si hay un número impar de boletas no "estudiante", aplicamos el descuento a los pares
+                descuento = ((cantidadBoletasConDescuento - 1) / 2) * 20000;  // Aplicar el descuento solo para los pares
             }
+
+            // Recalcular el valor total después del descuento
+            int valorFinal = valorTotal.get() - descuento;
+
+            // Actualizar el valor de la compra
+            compra.get().setValor(valorFinal);
+            compraRepository.save(compra.get());
+
+            System.out.println("Valor final de la compra: " + valorFinal);
         }
+
 
         if (carritoPersona.isEmpty()) {
             if (compra.isPresent()) {

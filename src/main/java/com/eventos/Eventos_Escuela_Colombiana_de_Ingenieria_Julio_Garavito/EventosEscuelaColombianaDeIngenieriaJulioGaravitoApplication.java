@@ -16,20 +16,25 @@ import java.util.concurrent.Executor;
 @EnableScheduling
 @EnableAsync
 @AllArgsConstructor
-public class EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication {
+public class EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication implements CommandLineRunner {
+    private final PagarService pagarService;
 
-	public static void main(String[] args) {
-		SpringApplication.run(EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication.class, args);
+    }
 
-	@Bean
-	public Executor taskExecutor() {
-		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		executor.setCorePoolSize(2);
-		executor.setMaxPoolSize(2);
-		executor.setQueueCapacity(500);
-		executor.setThreadNamePrefix("Tasks-");
-		executor.initialize();
-		return executor;
-	}
+    @Bean
+    public Executor taskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("Tasks-");
+        executor.initialize();
+        return executor;
+    }
+
+    @Override
+    public void run(String... args) {
+    }
 }

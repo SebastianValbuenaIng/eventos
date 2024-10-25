@@ -16,5 +16,5 @@ public class BoletaRolResponse {
     private Integer id_boleta_principal;
     private Integer id_boleta_invitado;
     private Map<String, Integer> precios_boletas;
-    private LocalDate fecha_venta_fin;
+    private Boolean fecha_venta_fin;
 }

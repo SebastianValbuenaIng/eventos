@@ -113,7 +113,7 @@ public class AdministradorServiceImpl implements AdministradorService {
                             .rol(carritoPersonaEntity.getPersona().getRol().getDescripcion())
                             .telefono(carritoPersonaEntity.getPersona().getTelefono())
                             .correo(carritoPersonaEntity.getPersona().getCorreo())
-                            .valor(carritoPersonaEntity.getBoleta().getValor() - 10000)
+                            .valor(carritoPersonaEntity.getBoleta().getValor())
                             .build();
 
                     boletasAdmin.add(boletaPagadaResponse);
