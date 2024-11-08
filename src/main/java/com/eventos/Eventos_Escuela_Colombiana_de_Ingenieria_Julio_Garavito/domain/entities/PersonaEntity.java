@@ -20,6 +20,10 @@ public class PersonaEntity {
     private String documento;
 
     @ManyToOne
-    @JoinColumn(name = "id_rol", nullable = false)
+    @JoinColumn(name = "id_rol", nullable = true)
     private RolEntity rol;
+
+    @ManyToOne
+    @JoinColumn(name = "id_evento")
+    private EventoEntity evento;
 }

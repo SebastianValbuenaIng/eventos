@@ -16,9 +16,7 @@ import java.util.concurrent.Executor;
 @EnableScheduling
 @EnableAsync
 @AllArgsConstructor
-public class EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication implements CommandLineRunner {
-    private final PagarService pagarService;
-
+public class EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication {
     public static void main(String[] args) {
         SpringApplication.run(EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication.class, args);
     }
@@ -32,9 +30,5 @@ public class EventosEscuelaColombianaDeIngenieriaJulioGaravitoApplication implem
         executor.setThreadNamePrefix("Tasks-");
         executor.initialize();
         return executor;
-    }
-
-    @Override
-    public void run(String... args) {
     }
 }

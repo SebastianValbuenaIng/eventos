@@ -112,10 +112,10 @@ public class PagarServiceImpl implements PagarService {
             try {
                 MimeMessage mailMessage = javaMailSender.createMimeMessage();
 
-                String htmlBody = readHtmlTemplate.readHtmlTemplate(content, "plantilla-boleta-especial.html");
+                String htmlBody = readHtmlTemplate.readHtmlTemplate(content, "plantilla.html");
                 mailMessage.setContent(htmlBody, "text/html; charset=UTF-8");
                 mailMessage.setFrom(Objects.requireNonNull(environment.getProperty("spring.mail.username")));
-                mailMessage.setSubject("Boleta Especial");
+                mailMessage.setSubject("Pago Boleta Correctamente");
                 mailMessage.setRecipients(MimeMessage.RecipientType.TO, correo);
                 mailMessage.setRecipients(MimeMessage.RecipientType.BCC, "paulina.alvarado@escuelaing.edu.co");
                 javaMailSender.send(mailMessage);
